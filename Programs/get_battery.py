@@ -26,8 +26,8 @@ def battery_status():
         for val in values:
                status = mem.getData(val)
                print(" {}: {:.4f}".format(val, status))
-        print("")
-
+        print("") 
+        
 
 
 if __name__ == "__main__":
