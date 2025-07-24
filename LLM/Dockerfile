@@ -1,7 +1,7 @@
 # Dockerfile for LLM
 
 # Chose the base image (slim buster is more lightweight)
-FROM python:3.9.14-slim-buster
+FROM python:2.7-slim-buster
 
 # Set working directory (like cd) inside the container
 WORKDIR /app
