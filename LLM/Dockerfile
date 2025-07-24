@@ -9,11 +9,6 @@ WORKDIR /app
 # Upgrade pip to download requirements.txt
 RUN pip install --upgrade pip
 
-# Copy requirements.txt into app and install dependencies
-# --no-cache-dir keeps from downloading
-COPY requirements.txt .
-# RUN pip install --no-cache-dir -r requirements.txt
-
 # Copy the rest of the files to /app working dir
 COPY . .
 
