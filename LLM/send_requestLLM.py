@@ -19,7 +19,7 @@ def get_ip():
 
 
 def send_request(prompt):
-    req = urllib2.Request(URL, data=json.dumps({"model": MODEL_NAME, "prompt": prompt, "stream": False}), headers={"Content-Type": "application/json"})
+    req = urllib2.Request(URL, data=json.dumps({"model": "llama2", "prompt": prompt, "stream": False}), headers={"Content-Type": "application/json"})
 
     try:
         response = urllib2.urlopen(req)
@@ -39,47 +39,48 @@ def SR_start():
     MEM.insertData("WordRecognized", []) #Clear the memory of the last recognized word.
     
 
-LLM_IP = "169.254.49.133" #This needs to be the IP of the computer running LLM, but I am using my ethernet IP for testing during local-link.
-LLM_PORT = "11434"
-MODEL_NAME = "llama2"
 NAO_IP = get_ip()  # Get the local IP address
 NAO_PORT = 9559
-TTS = ALProxy("ALTextToSpeech", NAO_IP, 9559)
+TTS = ALProxy("ALTextToSpeech", NAO_IP, NAO_PORT)
 #I should try to get the name of the NAO here somehow, so I can start listening for a prompt starting with "[NAO_NAME], ...".
-URL = "http://{}:{}/api/generate".format(LLM_IP, LLM_PORT)
+URL = "http://{}:{}/api/generate".format("169.254.44.35", "11434")
 VOCABULARY = ["exit", "ratchet"]
 
 if __name__ == "__main__":
-    SR = ALProxy("ALSpeechRecognition", NAO_IP, 9559)
-    MEM = ALProxy("ALMemory", NAO_IP, 9559)
+    SR = ALProxy("ALSpeechRecognition", NAO_IP, NAO_PORT)
+    MEM = ALProxy("ALMemory", NAO_IP, NAO_PORT)
     SR.setWordListAsVocabulary(VOCABULARY, False) #Set vocabulary for speech recognition. NAO will listen for the strings in VOCABULARY to be the first word spoken.
     SR_start()
     
     try:
         while True:
             word = MEM.getData("WordRecognized")
-            if word and len(word) >= 2 and word[1] > .4:         
+            # if word: print("Word: {} Confidence: {}".format(word[0], word[1]))
+            # else: print("None.")
+            if word and len(word) >= 2 and word[1] > .3:  
                 if word[0] == "ratchet":   
                 #NAO does not have open vocabulary speech recognition, so we will have to pipeline: record audio with ALAudioDeviceProxy (startMicrophonesRecording) -> PC -> Vosk(?) -> LLM -> ALTextToSpeech.
                 #Because the LLM is slow (most likely model limitations and my slow laptop, though bigger responses will still be slow) we should try to this to work with streaming if possible.
                 #Start recording audio to a file, so we can send it to the LLM.
                     print("Starting audio recording. Say your prompt after the 'listening'")
-                    AUDIO = ALProxy("ALAudioDevice", NAO_IP, 9559)
+                    AUDIO = ALProxy("ALAudioRecorder", NAO_IP, NAO_PORT)
                     TTS.say("Listening") #Maybe instead of this, just light the eyes green.
-                    AUDIO.startMicrophonesRecording("/home/nao/recordings/audio/llm_prompt.wav")
-                    #Wait for the user to finish speaking, then stop recording.
-                    time.sleep(2) #Wait for 2 seconds to allow the user to start speaking. Might be better to just use a decimal value
-                    #ISSUE: After the sleep, if the user doesn't make noise but is midsentence (like stopping to breathe), then the recording stops.
-                    while MEM.getData("SpeechDetected") == True:
-                        time.sleep(2) #Wait for a second before checking, should allow for ~ a second of silence.
-                    AUDIO.stopMicrophonesRecording()
-                    SR.unsubscribe("Ratchet")
-                    print("Audio recording stopped. Sending request to LLM.")
+                    AUDIO.startMicrophonesRecording("/home/nao/recordings/audio/llm_prompt.wav", "wav", 16000, [0, 0, 1, 0]) #Left, right, front, and rear microphones. Use 16kHz sample rate and mono (front) channel.
+                    silence_duration = 0.0 #Used to have a smoother check for silence.
 
-                    # prompt = raw_input("Enter your prompt (or 'shutdown' to quit): ") #input() runs code in Python 2, not like Python 3.
-                    # if prompt.lower() == "shutdown":
-                    #     break
-                    send_request("Hello")
+                    while True: #Keep recording until silence is detected for 2 seconds.
+                        if MEM.getData("SpeechDetected"):
+                            silence_duration = 0.0 #User resumed speaking.
+                        else:
+                            silence_duration += .2 #Increment silence duration by sleep time.
+                            if silence_duration >= 2.0: #If silence is detected for 2 seconds, recording is stopped.
+                                AUDIO.stopMicrophonesRecording()
+                                SR.unsubscribe("Ratchet")
+                                print("Audio recording stopped. Sending request to LLM.")
+                                send_request("Hello")
+                                break
+                        time.sleep(.2) #Sleep to check for silence every n seconds.
+                        
                     SR_start()
                 elif word[0] == "exit":
                     break
