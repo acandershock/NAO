@@ -5,7 +5,7 @@ import json
 import requests
 
 app = Flask(__name__) #Initialize Flask app.
-model = Model("vosk-model-small-en-us-0.15") #Load Vosk model.
+model = Model("vosk") #Load Vosk model.
 
 @app.route('/upload', methods=['POST']) #Tell Flask what URL triggers upload function.
 def upload():
@@ -32,4 +32,4 @@ def upload():
 
     return jsonify({"reply": reply}), 200 #200 is OK HTTP status code.
 
-app.run(host="169.254.44.35", port=5000) #Change host to IP of the network PC and NAO are connected to.
+app.run(host="169.254.49.133", port=5000) #Change host to IP of the network PC and NAO are connected to.
