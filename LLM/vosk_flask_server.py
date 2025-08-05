@@ -20,12 +20,10 @@ def upload():
         rec.AcceptWaveform(wf.readframes(wf.getnframes()))
         transcript = (json.loads(rec.FinalResult())).get("text", "")
         print("Transcript:", transcript)
-        print("Transcript type:", type(transcript))
 
     try: #Send transcript to LLM to get a reply. Using localhost since same machine running Vosk and Flask should be hosting LLM.
-        llm_response = requests.post("http://169.254.44.35:11434/api/generate", json={"model": "llama2", "prompt": transcript, "stream": False})
+        llm_response = requests.post("http://localhost:11434/api/generate", json={"model": "llama2", "prompt": transcript, "stream": False})
         reply = llm_response.json().get("response", "No response found from LLM.")
-        print(llm_response.status_code, llm_response.text)
     except Exception as e:
         reply = "Error getting a reply."
         print("LLM error:", e)
